@@ -10,11 +10,13 @@
 ## HPO的經典三種方法  
 - Grid Search  
 - Random Search  
-- Bayesian Search  
+- **Bayesian Search(本文主要重點)**  
   
 ## 隨機搜索(Random Search)  
-在Random Search中, 因為調整不依照先前的作業結果, 因此可以運行multithreah, 而不影響搜索的性能, Random Search效果可能會比Grid Search來的好, 因為Grid 有可能沒有指定到想要的參數, 就會造成local minimum而非global minimum  
-而Random Search又會比全部掃描來的快  
+在Random Search中, 因為調整不依照先前的作業結果, 因此可以運行multithreah, 而不影響搜索的性能  
+  
+**Random Search效果可能會比Grid Search來的好**  
+因為Grid 有可能沒有指定到想要的參數, 就會造成local minimum而非global minimum, 而Random Search又會比全部掃描來的快  
   
 ## 貝葉斯搜索(Bayesian Search)  
 ![Exploration-oriented and Exploitation-oriented](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/BO-1.png)  
@@ -29,15 +31,75 @@
 2. obtain the hyper-parameter set that performs best on the surrogate model  
 3. compute the acquisition function with the current surrogate model  
 4. apply the hyper-parameter set to the objective function  
-5. update the surrogate model with new results
+5. update the surrogate model with new results  
 6. Loop 1~5 until the optimal configuration is found or the resource limit is reached  
   
 #### Surrogate function(代理模型)  
-使用沒有參數的surrogate function去模擬objective function, 我們可以根據prior distribution, 來推測出objective function的posterior distribution, 這個posterior probability 就是我們的surrogate objective function.  
+使用沒有參數的surrogate function去模擬objective function的行為, 我們可以根據prior distribution, 來推測出objective function的posterior distribution, 這個posterior probability 就是我們的surrogate objective function.  
+因為我們不需要了解objective function, surrogate只是給出每個input對應output的機率並藉此找出目標(例如最大最小值), objective function不需要連續, 但連續的時候surrogate 優化效果最好  
   
+從網路上找到的範例, 可以看到它們採用GPR (Gaussian Process Regressor)當作Surrogate function  
+```python
+# surrogate or approximation for the objective function
+def surrogate(model, X):
+    # catch any warning generated when making a prediction
+    with catch_warnings():
+        # ignore generated warnings
+        simplefilter("ignore")
+        return model.predict(X, return_std=True)
+model = GaussianProcessRegressor()
+ysamples, _ = surrogate(model, Xsamples)
+```
 #### Acquisition function  
-是用來balance exploration跟exploitation用的, 用來minimize loss function 來選擇optimal candidate points, 可以使用BO, 但是Gaussian Process(GP)是最廣泛使用的, 不同的acquisition function被提出來, 像是probability of imporvement, GP upper confidence bound(GP-UCB), predictive entropy search, protfolio containing multiple acquisition strategies. 其中expected improvement algorithm 是最常用的  
+在我的觀點來看, Acquisition function類似RL的Reward function, 這邊主要是用來balance exploration跟exploitation用的, 用來minimize loss function 來選擇optimal candidate points, 可以使用BO, 但是Gaussian Process(GP)是最廣泛使用的, 不同的acquisition function被提出來, 像是**probability of improvement, GP upper confidence bound(GP-UCB), predictive entropy search, protfolio containing multiple acquisition strategies. 其中expected improvement algorithm 是最常用的**  
   
+下面是節錄自[modAL](https://modal-python.readthedocs.io/en/latest/content/query_strategies/Acquisition-functions.html)  
+##### Probability of improvement  
+![PI](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/AcquisitionFunction-1.png)  
+從左圖開始, 上圖白點代表量測點, 陰影部分代表不確定性是跟據GP模型算出來的, 離量測點越遠, 標準差越大(不確定性越高), 黑色實線代表實際的objective function, 下圖代表了PI, 我們可以看到幾個特性  
+1. 離量測點越遠不確定性越大(陰影部分)  
+2. 因為量測點是固定的, 所以除非量測點 > 所有陰影部分否則通常會認定其他點是最大值的機率最大  
+  
+##### Expected improvement  
+![EI](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/AcquisitionFunction-2.png)  
+對於EI一樣, 只是EI的下圖改成期望值  
+  
+##### Upper confidence bound  
+![UCB](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/AcquisitionFunction-3.png)  
+與上面一樣, 只是採用UCB作為下圖  
+這邊解釋為什麼這個式子可以代表UCB, 因為量測越多次的時候std越小, 量測越少的點std越大, 也就導致UCB越大, 使得UCB會去探索不確定的點, 與蒙地卡羅中的UCB是同樣的概念  
+  
+回到Acquisition function來看, 下面的sample code是用PI來做, 可以再幫助我們了解整個acquisition function  
+下面的例子是要找objective 最大值, 所以他將檢測過的X(input)送進去surrogate  
+surrogate會output mean跟std  
+選擇觀測到最大的yhat(mean)  
+並且利用Xsamples(建議可以越大越好, 避免沒有選取到空間中所有的點), 來代表整個Space的其他點, 根據上面PI的公式把所有的點的PI算出來  
+選取PI最大的人做為下一個要選取的目標  
+(為什麼PI是這樣算?, GP是甚麼?)  
+
+```python
+def acquisition(X, Xsamples, model):
+    # calculate the best surrogate score found so far
+    yhat, _ = surrogate(model, X)
+    best = max(yhat)
+    # calculate mean and stdev via surrogate function
+    mu, std = surrogate(model, Xsamples)
+    mu = mu[:, 0]
+    # calculate the probability of improvement
+    probs = norm.cdf((mu - best) / (std+1E-9))
+    return probs
+    
+# optimize the acquisition function
+def opt_acquisition(X, y, model):
+    # random search, generate random samples
+    Xsamples = random(100)
+    Xsamples = Xsamples.reshape(len(Xsamples), 1)
+    # calculate the acquisition function for each sample
+    scores = acquisition(X, Xsamples, model)
+    # locate the index of the largest scores
+    ix = argmax(scores)
+    return Xsamples[ix, 0]
+```
 #### Gausian Process  
 ![Gaussian process with 29 samplings](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/BO-1.png)  
 從上圖可以更清楚的了解BO的背後原理, GP根據前面的sampling來決定還沒sampling點的uncertainty(probability)  
@@ -133,4 +195,3 @@ plt.show()
 - [Scalable Bayesian Optimization Using Deep Neural Networks](http://proceedings.mlr.press/v37/snoek15.pdf)  
 - [Input Warping for Bayesian Optimization of Non-stationary Functions](https://arxiv.org/abs/1402.0929)  
 - [Hyperparameter Optimization](https://www.automl.org/automl/hpo-overview/)  
-
