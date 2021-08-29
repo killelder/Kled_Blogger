@@ -212,7 +212,9 @@ ax[1].scatter(X, Y, label='observation point', c='red', markr='x')
 ax[1].legend()
 plt.show()
 ```
-
+  
+> 對於數學公式怎麼上githubgist以及medium, 如果會的人歡迎提供一下方法  
+  
 ## Reference  
 - [A Tutorial on Bayesian Optimization of Expensive Cost Functions, with Application to Active User Modeling and Hierarchical Reinforcement Learning](https://arxiv.org/abs/1012.2599)  
 - [Practical Bayesian Optimization of Machine Learning Algorithms](https://arxiv.org/abs/1206.2944)  
@@ -227,3 +229,9 @@ plt.show()
 - [Scalable Bayesian Optimization Using Deep Neural Networks](http://proceedings.mlr.press/v37/snoek15.pdf)  
 - [Input Warping for Bayesian Optimization of Non-stationary Functions](https://arxiv.org/abs/1402.0929)  
 - [Hyperparameter Optimization](https://www.automl.org/automl/hpo-overview/)  
+  
+**如果喜歡這篇文章歡迎打賞**  
+BTC (BTC) : 1LFRBqvWR9GGizBzoFddkb5xRpAzKRVoDC  
+BTC (BSC) : 0xe1cda3eb778d1751af17feac796a4bbe4dbca815  
+BTC (ERC20) : 0xe1cda3eb778d1751af17feac796a4bbe4dbca815  
+USDT (TRC20) : TT7wgKuYoHwfRy3vCr38Qy3gnS3JJ1aKvn  
