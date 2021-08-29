@@ -75,8 +75,9 @@ surrogate會output mean跟std
 選擇觀測到最大的yhat(mean)  
 並且利用Xsamples(建議可以越大越好, 避免沒有選取到空間中所有的點), 來代表整個Space的其他點, 根據上面PI的公式把所有的點的PI算出來  
 選取PI最大的人做為下一個要選取的目標  
-(為什麼PI是這樣算?, GP是甚麼?)  
-
+[High Dimension HPO](https://arxiv.org/pdf/2010.03955.pdf)  
+[Optimization Modeling in Python: Multiple Objectives Optimization(MOO)](https://medium.com/analytics-vidhya/optimization-modelling-in-python-multiple-objectives-760b9f1f26ee)  
+  
 ```python
 def acquisition(X, Xsamples, model):
     # calculate the best surrogate score found so far
@@ -103,12 +104,54 @@ def opt_acquisition(X, y, model):
 #### Gausian Process  
 ![Gaussian process with 29 samplings](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/BO-1.png)  
 從上圖可以更清楚的了解BO的背後原理, GP根據前面的sampling來決定還沒sampling點的uncertainty(probability)  
-對於GP來說, 任何參數的mean跟std都是確定的, 我們把參數看成是無限的高斯分布, 對於一個p維的高斯分布而言, 決定分布的是他的  
-mean = $$\mu_p$$  
+[淺析高斯回歸](https://www.itread01.com/content/1548685291.html)
+**一般函數給X(input)會希望求出Y(output), 而GP是希望給X(input)求出Y(output)的分布**  
+對於集合  
   
-std = $$\sum_{pxp}$$  
+$$D(X,Y)$$
+  
+令  
+  
+$$f(x_i)=y_i$$
+  
+可以得到向量  
+  
+$$f=[f(x_1),f(x_2),..]$$
+  
+將需要預測的$$x_i$$的集合定義為$$X^\prime$$  
+對應的預測為$$f^\prime$$  
+根據貝氏定理  
+  
+$$p(f^\prime|f) = \frac{p(f|f^\prime)p(f^\prime)}{p(f)} = \frac{p(f, f^\prime)}{p(f)}$$
+  
+首先需要計算樣本之間的分布  
+  
+$$ f = N(\mu, K)$$
+  
+其中  
+$$\mu$$為各向量$$[f(x_1),f(x_2),..]$$的均值  
+$$K$$為斜方差矩陣(covariance matrix)  
+再根據$$f^\prime$$的先驗機率分布  
+  
+$$ f^\prime = N(\mu^\prime, K^\prime)$$
+  
+就可以推出$$p(f^\prime|f)$$  
+其中有兩個核心問題  
+1. 如何計算covariance matrix  
+2. 如何計算f'的機率分布  
+  
+計算covariance之前可以先對covariance有點感覺  
+![Covariance](https://github.com/killelder/Kled_Blogger/blob/Hyperparameter/HyperParameter/Covariance.png)  
+左圖很明顯y跟x關係較小, 右圖很明顯x跟y呈現線性關係  
+因為我們不想要真的去計算covariance公式  
+我們透過covariance的特性找出kernel作替代  
+選擇了[RBF kernel](https://zh.wikipedia.org/wiki/%E5%BE%84%E5%90%91%E5%9F%BA%E5%87%BD%E6%95%B0)  
+
+對於GP來說, 任何參數的mean跟std都是確定的, 我們把參數看成是無限的高斯分布, 對於一個p維的高斯分布而言, 決定分布的是他的  
+
 std反應了高維分布中自己的std, 以及不同維度之間的std  
-std function = $$k(s, t) = \sigma exp(- \frac{||s-t||^2}{2t^2})$$  
+  
+$$k(s, t) = \sigma exp(- \frac{||s-t||^2}{2t^2})$$
   
 從這個式子可以解讀出, s跟t是兩個不同的sampling點, |s-t|平方可以看做是距離, 這個函數代表的就是s和t兩個sampling點各自代表的高斯分布之間的std差值, 是一個與距離負相關的函數, 當距離越大, 兩個std差越小, 即相關性越小, 反之越靠近的兩個點對應的分布std差值就越大  
   
@@ -116,13 +159,8 @@ std function = $$k(s, t) = \sigma exp(- \frac{||s-t||^2}{2t^2})$$
 假設我們可以取樣空間中所有點, 理論上可以得到function的樣子, 但如果我們沒有辦法得到所有的點又想要推論function, 假設有三個點ABC, AB比AC更近, 那麼AB有更高的相關性, AC有較低的相關性, 如果在A得到了一組數據, 想根據A推論B跟C, 這樣推論B應該有比較小的不確定性, 如果我們把採樣點都套用這個方式去推論, 就可以得到整個function的大概樣貌  
 假設我們知道x=4跟x=4.5相關係數是0.8, 因為我們每次採樣都是有誤差的, (該sampling點自己的std), 所以我們用gaussian error來描述該點, 假設我們知道觀測x=4得到3 std=1, 那麼推測x=4.5的數據, 只需要找到那些滿足x=4的點的條件以及相關係數的條件, 就可以推斷出來x=4.5了  
 而GP就是透過Gaussian 來定義點跟點之間的相關性  
-  
-**二維的gp叫gaussian random field**  
-  
-大家跑Gaussian process經驗是只有參數和kernel選的非常好fit才會好, 不然会失之千里。 相比之下 **RBF radio basis function fit surface**的效果更穩健  
-  
-  
-
+## Code  
+以下是節錄自- [How to Implement Bayesian Optimization from Scratch in Python](https://machinelearningmastery.com/what-is-bayesian-optimization/)的sample code  
   
 ```python
 import matplotlib.pyplot as plt
@@ -174,12 +212,6 @@ ax[1].scatter(X, Y, label='observation point', c='red', markr='x')
 ax[1].legend()
 plt.show()
 ```
-
-### What is Bayesian Optimization  
-### Sequential model-based optimization (SMBO)  
-
-## SMAC  
-## TPE  
 
 ## Reference  
 - [A Tutorial on Bayesian Optimization of Expensive Cost Functions, with Application to Active User Modeling and Hierarchical Reinforcement Learning](https://arxiv.org/abs/1012.2599)  
