@@ -1,3 +1,5 @@
+
+
 # Hyperparameter Optimization(HPO) 超參數優化  
   
 > Preface (廢言) : 原先要做RL自動找參數, Survey與親自試驗過後, 發現RL真的是一個大坑, 在與組員討論過後, 決定使用HPO的方式來做找參數的Algorithm, 想到了當初AWS主打的功能之一就是HPO, 所以這邊就參考了AWS的HPO工作原理介紹  
@@ -108,34 +110,34 @@ def opt_acquisition(X, y, model):
 **一般函數給X(input)會希望求出Y(output), 而GP是希望給X(input)求出Y(output)的分布**  
 對於集合  
   
-$$D(X,Y)$$
+![formula 1](https://arachnoid.com/latex/?equ=D%28x%2Cy%29)
   
 令  
   
-$$f(x_i)=y_i$$
+![formula 2](https://arachnoid.com/latex/?equ=f%28x_i%29%3Dy_i)
   
 可以得到向量  
   
-$$f=[f(x_1),f(x_2),..]$$
+![formula 3](https://arachnoid.com/latex/?equ=f%3D%5Bf%28x_1%29%2Cf%28x_2%29%   2C..%5D)
   
-將需要預測的$$x_i$$的集合定義為$$X^\prime$$  
-對應的預測為$$f^\prime$$  
+將需要預測的![xi](https://arachnoid.com/latex/?equ=x_i)的集合定義為![xprime](https://arachnoid.com/latex/?equ=X%5E%5Cprime)  
+對應的預測為![fprime](https://arachnoid.com/latex/?equ=f%5E%5Cprime)  
 根據貝氏定理  
   
-$$p(f^\prime|f) = \frac{p(f|f^\prime)p(f^\prime)}{p(f)} = \frac{p(f, f^\prime)}{p(f)}$$
+![formula 4](https://arachnoid.com/latex/?equ=p%28f%5E%5Cprime%7Cf%29%20%3D%20%5Cfrac%7Bp%28f%7Cf%5E%5Cprime%29p%28f%5E%5Cprime%29%7D%7Bp%28f%29%7D%20%3D%20%5Cfrac%7Bp%28f%2C%20f%5E%5Cprime%29%7D%7Bp%28f%29%7D)
   
 首先需要計算樣本之間的分布  
   
-$$ f = N(\mu, K)$$
+![formula 5](https://arachnoid.com/latex/?equ=f%20%3D%20N%28%5Cmu%2C%20K%29)
   
 其中  
-$$\mu$$為各向量$$[f(x_1),f(x_2),..]$$的均值  
-$$K$$為斜方差矩陣(covariance matrix)  
-再根據$$f^\prime$$的先驗機率分布  
+![mu](https://arachnoid.com/latex/?equ=%5Cmu)為各向量![formula 7](https://arachnoid.com/latex/?equ=%5Bf%28x_1%29%2Cf%28x_2%29%2C..%5D)的均值  
+![K](https://arachnoid.com/latex/?equ=K)為斜方差矩陣(covariance matrix)  
+再根據![formula 9](https://arachnoid.com/latex/?equ=f%5E%5Cprime)的先驗機率分布  
   
-$$ f^\prime = N(\mu^\prime, K^\prime)$$
+![formula 10](https://arachnoid.com/latex/?equ=f%5E%5Cprime%20%3D%20N%28%5Cmu%5E%5Cprime%2C%20K%5E%5Cprime%29)
   
-就可以推出$$p(f^\prime|f)$$  
+就可以推出![fprime](https://arachnoid.com/latex/?equ=p%28f%5E%5Cprime%7Cf%29)  
 其中有兩個核心問題  
 1. 如何計算covariance matrix  
 2. 如何計算f'的機率分布  
@@ -151,7 +153,7 @@ $$ f^\prime = N(\mu^\prime, K^\prime)$$
 
 std反應了高維分布中自己的std, 以及不同維度之間的std  
   
-$$k(s, t) = \sigma exp(- \frac{||s-t||^2}{2t^2})$$
+![formula 11](https://arachnoid.com/latex/?equ=k%28s%2C%20t%29%20%3D%20%5Csigma%20exp%28-%20%5Cfrac%7B%7C%7Cs-t%7C%7C%5E2%7D%7B2t%5E2%7D%29)
   
 從這個式子可以解讀出, s跟t是兩個不同的sampling點, |s-t|平方可以看做是距離, 這個函數代表的就是s和t兩個sampling點各自代表的高斯分布之間的std差值, 是一個與距離負相關的函數, 當距離越大, 兩個std差越小, 即相關性越小, 反之越靠近的兩個點對應的分布std差值就越大  
   
