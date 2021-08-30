@@ -108,34 +108,34 @@ def opt_acquisition(X, y, model):
 **一般函數給X(input)會希望求出Y(output), 而GP是希望給X(input)求出Y(output)的分布**  
 對於集合  
   
-$$D(X,Y)$$
-  
+![D](https://render.githubusercontent.com/render/math?math=D%28X,Y%29&mode=inline)
+
 令  
   
-$$f(x_i)=y_i$$
+![formula 0](https://render.githubusercontent.com/render/math?math=f%28x_i%29=y_i&mode=inline)
   
 可以得到向量  
   
-$$f=[f(x_1),f(x_2),..]$$
+![formula 1](https://render.githubusercontent.com/render/math?math=f=[f%28x_1%29,f%28x_2%29,..]&mode=inline)
   
-將需要預測的$$x_i$$的集合定義為$$X^\prime$$  
-對應的預測為$$f^\prime$$  
+將需要預測的![x_i](https://render.githubusercontent.com/render/math?math=x_i&mode=inline)的集合定義為![x_prime](https://render.githubusercontent.com/render/math?math=X\prime&mode=inline)  
+對應的預測為![f_prime](https://render.githubusercontent.com/render/math?math=f\prime&mode=inline)  
 根據貝氏定理  
   
-$$p(f^\prime|f) = \frac{p(f|f^\prime)p(f^\prime)}{p(f)} = \frac{p(f, f^\prime)}{p(f)}$$
+![formula 2](https://render.githubusercontent.com/render/math?math=p%28f\prime|f%29=\frac{p%28f|f\prime%29p%28f\prime%29}{p%28f%29}=\frac{p%28f,f\prime%29}{p%28f%29}&mode=inline)
   
 首先需要計算樣本之間的分布  
   
-$$ f = N(\mu, K)$$
+![formula 3](https://render.githubusercontent.com/render/math?math=f=N%28\mu,%20K%29&mode=inline)
   
 其中  
-$$\mu$$為各向量$$[f(x_1),f(x_2),..]$$的均值  
-$$K$$為斜方差矩陣(covariance matrix)  
-再根據$$f^\prime$$的先驗機率分布  
+![mu](https://render.githubusercontent.com/render/math?math=\mu&mode=inline)為各向量![fset](https://render.githubusercontent.com/render/math?math=[f%28x_1%29,f%28x_2%29,..]&mode=inline)的均值  
+![K](https://render.githubusercontent.com/render/math?math=K&mode=inline)為斜方差矩陣(covariance matrix)  
+再根據![f_prime](https://render.githubusercontent.com/render/math?math=f\prime&mode=inline)的先驗機率分布  
   
-$$ f^\prime = N(\mu^\prime, K^\prime)$$
+![formula 4](https://render.githubusercontent.com/render/math?math=f\prime=N%28\mu\prime,K\prime%29&mode=inline)
   
-就可以推出$$p(f^\prime|f)$$  
+就可以推出![pf](https://render.githubusercontent.com/render/math?math=p%28f\prime|f%29&mode=inline)  
 其中有兩個核心問題  
 1. 如何計算covariance matrix  
 2. 如何計算f'的機率分布  
@@ -151,7 +151,7 @@ $$ f^\prime = N(\mu^\prime, K^\prime)$$
 
 std反應了高維分布中自己的std, 以及不同維度之間的std  
   
-$$k(s, t) = \sigma exp(- \frac{||s-t||^2}{2t^2})$$
+![formula_5](https://render.githubusercontent.com/render/math?math=k%28s,t%29=\sigma%20exp%28-\frac{||s-t||^2}{2t^2}%29&mode=inline)
   
 從這個式子可以解讀出, s跟t是兩個不同的sampling點, |s-t|平方可以看做是距離, 這個函數代表的就是s和t兩個sampling點各自代表的高斯分布之間的std差值, 是一個與距離負相關的函數, 當距離越大, 兩個std差越小, 即相關性越小, 反之越靠近的兩個點對應的分布std差值就越大  
   
@@ -161,60 +161,108 @@ $$k(s, t) = \sigma exp(- \frac{||s-t||^2}{2t^2})$$
 而GP就是透過Gaussian 來定義點跟點之間的相關性  
 ## Code  
 以下是節錄自- [How to Implement Bayesian Optimization from Scratch in Python](https://machinelearningmastery.com/what-is-bayesian-optimization/)的sample code  
+下面是採用Probability Improvement的方式  
+  
   
 ```python
-import matplotlib.pyplot as plt
-import numpy as np
+# example of bayesian optimization for a 1d function from scratch
+from math import sin
+from math import pi
+from numpy import arange
+from numpy import vstack
+from numpy import argmax
+from numpy import asarray
+from numpy.random import normal
+from numpy.random import random
+from scipy.stats import norm
+from sklearn.gaussian_process import GaussianProcessRegressor
+from warnings import catch_warnings
+from warnings import simplefilter
+from matplotlib import pyplot
 
-def gaussian_kernel(x1, x2, l=0.5, sigma_f=0.2):
-    m, n = x1.shape[0], x2.shape[0]
-    dis_matrix = np.zeros((m, n), dtype=float)
-    for i in range(m):
-        for j in range(n):
-            dist_matrix[i][j] = np.sum((x1[i] - x2[j]) ** 2)
-    return sigma_f ** 2 * np.exp( -0.5 / l ** 2 * dist_matrix)
-def getY(X):
-    X = np.asarray(X)
-    Y = np.sin(X)*0.4 + np.random.normal(0, 0.05, size=X.shape)
-    return Y.tolist()
-def update(X, X_star):
-    X = np.asarray(X)
-    X_star = np.asarray(X_star)
-    K_YY = gaussian_kernel(X, X)
-    K_ff = gaussian_kernel(X_star, X_star)
-    K_Yf = gaussian_kernel(X, X_star)
-    K_fY = gaussian_kernel(X_star, X)
-    K_YY_inv = np.linalg.inv(K_YY + 1e-8 * np.eye(len(X)))
-    
-    mu_star = K_fY.dot(K_YY_inv).dot(Y)
-    cov_star = K_ff - K_fY.dot(K_YY_inv).dot(K_Yf)
-    return mu_star, cov_star
+# objective function
+def objective(x, noise=0.1):
+    noise = normal(loc=0, scale=noise)
+    return (x**2 * sin(5 * pi * x)**6.0) + noise
 
-f, ax = plt.subplots(2, 1, sharex=True, sharey=True)
-X_pre = np.arange(0, 10, 0.1)
-mu_pre = np.array([0]*len(X_pre))
-Y_pre = mu_pre
-cov_pre = gaussian_kernel(X_pre, X_pre)
-uncertainty = 1.96 * np.sqrt(np.diag(cov_pre)) #95% believe area
-ax[0].fill_between(X_pre, Y_pre + uncertainty, Y_pre - uncertianty, alpha=0.1)
-ax[0].plot(X_pre, Y_pre, label='expection')
-ax[0].legend()
+# surrogate or approximation for the objective function
+def surrogate(model, X):
+    # catch any warning generated when making a prediction
+    with catch_warnings():
+        # ignore generated warnings
+        simplefilter("ignore")
+        return model.predict(X, return_std=True)
 
-X= np.array([1, 3, 7, 9].reshape(-1, 1))
-Y = getY(X)
-X_star = np.arange(0, 10, 0.1).reshape(-1, 1)
-mu_star, cov_star = update(X, X_star)
-Y_star = mu_star.ravel()
-uncertainty = 1.96 * np.sqrt(np.diag(cov_pre)) #95% believe area
-ax[1].fill_between(X_star.ravel(), Y_star + uncertainty, Y_star - uncertianty, alpha=0.1)
-ax[1].plot(X_star, Y_star, label='expection')
-ax[1].scatter(X, Y, label='observation point', c='red', markr='x')
-ax[1].legend()
-plt.show()
+# probability of improvement acquisition function
+def acquisition(X, Xsamples, model):
+    # calculate the best surrogate score found so far
+    yhat, _ = surrogate(model, X)
+    best = max(yhat)
+    # calculate mean and stdev via surrogate function
+    mu, std = surrogate(model, Xsamples)
+    mu = mu[:, 0]
+    # calculate the probability of improvement
+    probs = norm.cdf((mu - best) / (std+1E-9))
+    return probs
+
+# optimize the acquisition function
+def opt_acquisition(X, y, model):
+    # random search, generate random samples
+    Xsamples = random(100)
+    Xsamples = Xsamples.reshape(len(Xsamples), 1)
+    # calculate the acquisition function for each sample
+    scores = acquisition(X, Xsamples, model)
+    # locate the index of the largest scores
+    ix = argmax(scores)
+    return Xsamples[ix, 0]
+
+# plot real observations vs surrogate function
+def plot(X, y, model):
+    # scatter plot of inputs and real objective function
+    pyplot.scatter(X, y)
+    # line plot of surrogate function across domain
+    Xsamples = asarray(arange(0, 1, 0.001))
+    Xsamples = Xsamples.reshape(len(Xsamples), 1)
+    ysamples, _ = surrogate(model, Xsamples)
+    pyplot.plot(Xsamples, ysamples)
+    # show the plot
+    pyplot.show()
+
+# sample the domain sparsely with noise
+X = random(100)
+y = asarray([objective(x) for x in X])
+# reshape into rows and cols
+X = X.reshape(len(X), 1)
+y = y.reshape(len(y), 1)
+# define the model
+model = GaussianProcessRegressor()
+# fit the model
+model.fit(X, y)
+# plot before hand
+plot(X, y, model)
+# perform the optimization process
+for i in range(100):
+    # select the next point to sample
+    x = opt_acquisition(X, y, model)
+    # sample the point
+    actual = objective(x)
+    # summarize the finding
+    est, _ = surrogate(model, [[x]])
+    print('>x=%.3f, f()=%3f, actual=%.3f' % (x, est, actual))
+    # add the data to the dataset
+    X = vstack((X, [[x]]))
+    y = vstack((y, [[actual]]))
+    # update the model
+    model.fit(X, y)
+
+# plot all samples and the final surrogate function
+plot(X, y, model)
+# best result
+ix = argmax(y)
+print('Best Result: x=%.3f, y=%.3f' % (X[ix], y[ix]))
 ```
   
-> 對於數學公式怎麼上githubgist以及medium, 如果會的人歡迎提供一下方法  
-  
+
 ## Reference  
 - [A Tutorial on Bayesian Optimization of Expensive Cost Functions, with Application to Active User Modeling and Hierarchical Reinforcement Learning](https://arxiv.org/abs/1012.2599)  
 - [Practical Bayesian Optimization of Machine Learning Algorithms](https://arxiv.org/abs/1206.2944)  
@@ -235,3 +283,4 @@ BTC (BTC) : 1LFRBqvWR9GGizBzoFddkb5xRpAzKRVoDC
 BTC (BSC) : 0xe1cda3eb778d1751af17feac796a4bbe4dbca815  
 BTC (ERC20) : 0xe1cda3eb778d1751af17feac796a4bbe4dbca815  
 USDT (TRC20) : TT7wgKuYoHwfRy3vCr38Qy3gnS3JJ1aKvn  
+
