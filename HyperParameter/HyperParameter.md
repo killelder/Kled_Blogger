@@ -204,7 +204,7 @@ def acquisition(X, Xsamples, model):
     # calculate the probability of improvement
     probs = norm.cdf((mu - best) / (std+1E-9))
     return probs
-
+    
 # optimize the acquisition function
 def opt_acquisition(X, y, model):
     # random search, generate random samples
